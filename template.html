@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NAS Monitor</title>
+    <style>
+        :root {
+            --background-color: #ffffff;
+            --text-color: #000000;
+            --card-background: #f9f9f9;
+            --button-background: #007bff;
+            --button-text: #ffffff;
+            --bar-background: #d3d3d3;
+            --bar-fill: #007bff;
+        }
+
+        [data-theme="dark"] {
+            --background-color: #181818;
+            --text-color: #ffffff;
+            --card-background: #2a2a2a;
+            --button-background: #4CAF50;
+            --button-text: #ffffff;
+            --bar-background: #3a3a3a;
+            --bar-fill: #4CAF50;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: var(--background-color);
+            color: var(--text-color);
+            transition: background-color 0.3s, color 0.3s;
+        }
+
+        header {
+            padding: 1rem;
+            text-align: center;
+            background: var(--card-background);
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+        }
+
+        h1 {
+            margin: 0;
+            font-size: 2rem;
+        }
+
+        .container {
+            position: relative;
+            max-width: 600px;
+            margin: 2rem auto;
+            padding: 1rem;
+            background: var(--card-background);
+            border-radius: 8px;
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+        }
+
+        p {
+            margin: 0.5rem 0;
+            line-height: 1.6;
+        }
+
+        .bar-container {
+            margin: 1rem 0;
+            width: 100%;
+            height: 20px;
+            background-color: var(--bar-background);
+            border-radius: 10px;
+            overflow: hidden;
+        }
+
+        .bar-fill {
+            height: 100%;
+            width: 0%;
+            transition: width 0.3s ease-in-out, background-color 0.3s ease-in-out;
+        }
+
+        .toggle-theme {
+            position: absolute;
+            top: 1rem;
+            right: 1rem;
+            background-color: transparent;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: var(--text-color);
+            transition: color 0.3s;
+        }
+
+        .bar-container {
+            margin-bottom: 3rem;
+        }
+        
+        .toggle-unit {
+            position: absolute;
+            bottom: 1rem;
+            right: 1rem;
+            background-color: var(--button-background);
+            color: var(--button-text);
+            padding: 0.5rem 1rem;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background-color 0.3s, color 0.3s;
+        }
+
+        .toggle-theme:hover, .toggle-unit:hover {
+            background-color: darken(var(--button-background), 10%);
+        }
+
+        .toggle-theme:focus, .toggle-unit:focus {
+            outline: 2px solid var(--button-background);
+            outline-offset: 2px;
+        }
+
+        @media (max-width: 480px) {
+            .container {
+                padding: 1rem;
+                margin: 1rem;
+            }
+
+            .toggle-theme, .toggle-unit {
+                width: 100%;
+                margin-top: 0.5rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <main class="container">
+        <button class="toggle-theme" id="theme-toggle" aria-label="Toggle between dark and light mode">🌙</button>
+        <h1>Storage</h1>
+        <p><strong>Total:</strong> <span id="total"></span></p>
+        <p><strong>Free:</strong> <span id="free"></span></p>
+        <p><strong>Used:</strong> <span id="used"></span></p>
+        <p><strong>Used in percent:</strong> <span id="used-pct"></span>%</p>
+    
+        <div class="bar-container">
+            <div class="bar-fill" id="usage-bar"></div>
+        </div>
+    
+        <p id="error-message" style="display:none; color:red;">Failed to load storage data.</p>
+        <button class="toggle-unit" id="unit-toggle" title="Toggle between MB and GB">Switch to GB</button>
+    </main>
+    <script>
+        const storageData = {
+            total: {{.Total}},
+            free: {{.Free}},
+            used: {{.Used}},
+            usedPct: {{.UsedPct}}
+        };
+
+        const totalEl = document.getElementById('total');
+        const freeEl = document.getElementById('free');
+        const usedEl = document.getElementById('used');
+        const usedPctEl = document.getElementById('used-pct');
+        const usageBarEl = document.getElementById('usage-bar');
+        const unitToggleBtn = document.getElementById('unit-toggle');
+        const themeToggleButton = document.getElementById('theme-toggle');
+        const errorMessage = document.getElementById('error-message');
+
+        let isGB = localStorage.getItem('isGB') === 'true';
+
+        const formatData = (value, isGB) => {
+            return isGB ? (value / 1e9).toFixed(2) + ' GB' : (value / 1e6).toFixed(2) + ' MB';
+        };
+
+        const updateBarColor = (percent) => {
+            if (percent < 50) return '#28a745';
+            if (percent < 80) return '#ffc107';
+            return '#dc3545';
+        };
+
+        const updateUI = () => {
+            if (!storageData || !storageData.total) {
+                errorMessage.style.display = 'block';
+                return;
+            }
+
+            totalEl.textContent = formatData(storageData.total, isGB);
+            freeEl.textContent = formatData(storageData.free, isGB);
+            usedEl.textContent = formatData(storageData.used, isGB);
+            usedPctEl.textContent = storageData.usedPct.toFixed(2);
+            usageBarEl.style.width = storageData.usedPct + '%';
+            usageBarEl.style.backgroundColor = updateBarColor(storageData.usedPct);
+            unitToggleBtn.textContent = `Switch to ${isGB ? 'MB' : 'GB'}`;
+        };
+
+        unitToggleBtn.addEventListener('click', () => {
+            isGB = !isGB;
+            localStorage.setItem('isGB', isGB);
+            updateUI();
+        });
+
+        const systemPrefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+        const currentTheme = localStorage.getItem('theme') || (systemPrefersDark ? 'dark' : 'light');
+        document.documentElement.setAttribute('data-theme', currentTheme);
+
+        const updateThemeButtonIcon = () => {
+            const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+            themeToggleButton.textContent = isDark ?   '☀️' : '🌙';
+        };
+
+        themeToggleButton.addEventListener('click', () => {
+            const theme = document.documentElement.getAttribute('data-theme') === 'light' ? 'dark' : 'light';
+            document.documentElement.setAttribute('data-theme', theme);
+            localStorage.setItem('theme', theme);
+            updateThemeButtonIcon();
+        });
+
+        updateThemeButtonIcon();
+        updateUI();
+    </script>
+</body>
+</html>
